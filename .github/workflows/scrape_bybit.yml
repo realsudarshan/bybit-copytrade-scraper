@@ -1,0 +1,41 @@
+name: Bybit Copy Trading Scraper
+
+on:
+  schedule:
+    # Runs every 6 hours (at minute 0 of hour 0, 6, 12, 18)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger anytime from GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          npm init -y
+          npm install playwright-extra puppeteer-extra-plugin-stealth
+          npx playwright install chromium
+
+      - name: Install Virtual Display (Xvfb)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Scraper with Virtual Display
+        # xvfb-run provides a display server so non-headless Chrome can run in CI
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" node bybit_scraper.js
+
+      - name: Commit & Push Updated Data to Repository
+        run: |
+          git config --global user.name "yabig17-max"
+          git config --global user.email "yabig17@gmail.com"
+          git add bybit_full_data.json
+          git commit -m "Auto-update Bybit trader data [skip ci]" || echo "No changes to commit"
+          git push
